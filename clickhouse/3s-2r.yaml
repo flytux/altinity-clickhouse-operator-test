@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keeper-root-config
+  namespace: clickhouse
+data:
+  keeper_config.xml: |
+    <clickhouse/>
+---
+apiVersion: clickhouse-keeper.altinity.com/v1
+kind: ClickHouseKeeperInstallation
+metadata:
+  name: keeper
+  namespace: clickhouse
+spec:
+  defaults:
+    templates:
+      podTemplate: keeper-pod
+      dataVolumeClaimTemplate: keeper-data
+  configuration:
+    clusters:
+      - name: keeper
+        layout:
+          replicasCount: 3
+  templates:
+    podTemplates:
+      - name: keeper-pod
+        spec:
+          volumes:
+            - name: keeper-root-config
+              configMap:
+                name: keeper-root-config
+          containers:
+            - name: clickhouse-keeper
+              image: dhi.io/clickhouse-keeper:26.9
+              args:
+                - --config-file=/etc/clickhouse-keeper/keeper_config.xml
+              volumeMounts:
+                - name: keeper-root-config
+                  mountPath: /etc/clickhouse-keeper/keeper_config.xml
+                  subPath: keeper_config.xml
+    volumeClaimTemplates:
+      - name: keeper-data
+        reclaimPolicy: Retain
+        spec:
+          storageClassName: local-path
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+---
+apiVersion: clickhouse.altinity.com/v1
+kind: ClickHouseInstallation
+metadata:
+  name: clickhouse
+  namespace: clickhouse
+spec:
+  defaults:
+    templates:
+      podTemplate: clickhouse-pod
+      dataVolumeClaimTemplate: clickhouse-data
+  configuration:
+    zookeeper:
+      keeper:
+        name: keeper
+        namespace: clickhouse
+        serviceType: Replicas
+    clusters:
+      - name: main
+        layout:
+          shardsCount: 3
+          replicasCount: 2
+  templates:
+    podTemplates:
+      - name: clickhouse-pod
+        spec:
+          containers:
+            - name: clickhouse
+              image: dhi.io/clickhouse-server:26.9
+    volumeClaimTemplates:
+      - name: clickhouse-data
+        reclaimPolicy: Retain
+        spec:
+          storageClassName: local-path
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
