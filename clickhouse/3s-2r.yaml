@@ -62,11 +62,8 @@ spec:
       dataVolumeClaimTemplate: clickhouse-data
   configuration:
     users:
-      default/password:
-        valueFrom:
-          secretKeyRef:
-            name: clickhouse-default-auth
-            key: password
+      default/networks/ip:
+        - 0.0.0.0/0
     zookeeper:
       keeper:
         name: keeper

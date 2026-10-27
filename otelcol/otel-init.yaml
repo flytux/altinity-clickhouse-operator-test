@@ -369,24 +369,18 @@ spec:
           image: dhi.io/clickhouse-server:26.9
           env:
             - name: CLICKHOUSE_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: otel-clickhouse-auth
-                  key: username
-            - name: CLICKHOUSE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: otel-clickhouse-auth
-                  key: password
+              value: default
           command:
-            - clickhouse-client
+            - /bin/sh
+            - -ec
           args:
-            - --host=clickhouse-clickhouse.clickhouse.svc
-            - --port=9000
-            - --user=$(CLICKHOUSE_USERNAME)
-            - --password=$(CLICKHOUSE_PASSWORD)
-            - --multiquery
-            - --queries-file=/sql/init.sql
+            - |
+              exec clickhouse-client \
+                --host=clickhouse-clickhouse.clickhouse.svc \
+                --port=9000 \
+                --user="$CLICKHOUSE_USERNAME" \
+                --multiquery \
+                --queries-file=/sql/init.sql
           volumeMounts:
             - name: sql
               mountPath: /sql

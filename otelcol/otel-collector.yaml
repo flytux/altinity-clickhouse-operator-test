@@ -28,7 +28,6 @@ data:
         endpoint: tcp://clickhouse-clickhouse.clickhouse.svc:9000
         database: otel
         username: ${env:CLICKHOUSE_USERNAME}
-        password: ${env:CLICKHOUSE_PASSWORD}
         create_schema: false
         async_insert: true
         compress: lz4
@@ -88,15 +87,7 @@ spec:
           image: otel/opentelemetry-collector-contrib:0.164.0
           env:
             - name: CLICKHOUSE_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: otel-clickhouse-auth
-                  key: username
-            - name: CLICKHOUSE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: otel-clickhouse-auth
-                  key: password
+              value: default
           args:
             - --config=/etc/otelcol-contrib/config.yaml
           ports:

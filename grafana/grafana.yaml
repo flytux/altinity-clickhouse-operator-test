@@ -27,8 +27,6 @@ data:
             defaultDatabase: otel
             defaultTable: otel_traces
             otelEnabled: true
-        secureJsonData:
-          password: ${CLICKHOUSE_PASSWORD}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -80,15 +78,7 @@ spec:
             - name: GF_PLUGINS_PREINSTALL
               value: grafana-clickhouse-datasource
             - name: CLICKHOUSE_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: otel-clickhouse-auth
-                  key: username
-            - name: CLICKHOUSE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: otel-clickhouse-auth
-                  key: password
+              value: default
           ports:
             - name: http
               containerPort: 3000
@@ -134,3 +124,22 @@ spec:
     - name: http
       port: 3000
       targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  namespace: clickhouse
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: grafana.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  name: http

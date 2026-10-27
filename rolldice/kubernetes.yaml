@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: rolldice
-          image: rolldice:latest
+          image: rolldice:new
           imagePullPolicy: IfNotPresent
           env:
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
