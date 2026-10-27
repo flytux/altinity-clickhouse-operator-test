@@ -17,7 +17,7 @@ data:
           host: clickhouse-clickhouse.clickhouse.svc
           port: 9000
           protocol: native
-          username: default
+          username: ${CLICKHOUSE_USERNAME}
           defaultDatabase: otel
           logs:
             defaultDatabase: otel
@@ -27,6 +27,8 @@ data:
             defaultDatabase: otel
             defaultTable: otel_traces
             otelEnabled: true
+        secureJsonData:
+          password: ${CLICKHOUSE_PASSWORD}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -77,6 +79,16 @@ spec:
                   key: admin-password
             - name: GF_PLUGINS_PREINSTALL
               value: grafana-clickhouse-datasource
+            - name: CLICKHOUSE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: otel-clickhouse-auth
+                  key: username
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: otel-clickhouse-auth
+                  key: password
           ports:
             - name: http
               containerPort: 3000

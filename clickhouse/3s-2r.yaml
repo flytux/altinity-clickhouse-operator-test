@@ -61,6 +61,12 @@ spec:
       podTemplate: clickhouse-pod
       dataVolumeClaimTemplate: clickhouse-data
   configuration:
+    users:
+      default/password:
+        valueFrom:
+          secretKeyRef:
+            name: clickhouse-default-auth
+            key: password
     zookeeper:
       keeper:
         name: keeper
