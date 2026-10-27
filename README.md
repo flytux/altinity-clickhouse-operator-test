@@ -1,0 +1,1 @@
+# altinity-clickhouse-operator-test
