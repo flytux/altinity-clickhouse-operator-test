@@ -21,7 +21,7 @@ spec:
     clusters:
       - name: keeper
         layout:
-          replicasCount: 3
+          replicasCount: 1
   templates:
     podTemplates:
       - name: keeper-pod
@@ -39,6 +39,20 @@ spec:
                 - name: keeper-root-config
                   mountPath: /etc/clickhouse-keeper/keeper_config.xml
                   subPath: keeper_config.xml
+                - name: keeper-data
+                  mountPath: /var/lib/clickhouse
+          initContainers:
+            - name: init-data-dir
+              image: busybox
+              command:
+                - "sh"
+                - "-c"
+                - "chown -R 65532:65532 /var/lib/clickhouse"
+              securityContext:
+                runAsUser: 0
+              volumeMounts:
+                - name: keeper-data
+                  mountPath: /var/lib/clickhouse
     volumeClaimTemplates:
       - name: keeper-data
         reclaimPolicy: Retain
@@ -61,7 +75,24 @@ spec:
       podTemplate: clickhouse-pod
       dataVolumeClaimTemplate: clickhouse-data
   configuration:
+    files:
+      config.d/backup_disk.xml: |
+        <clickhouse>
+          <storage_configuration>
+            <disks>
+              <backups>
+                <type>local</type>
+                <path>/backups/</path>
+              </backups>
+            </disks>
+          </storage_configuration>
+          <backups>
+            <allowed_disk>backups</allowed_disk>
+            <allowed_path>/backups/</allowed_path>
+          </backups>
+        </clickhouse>
     users:
+      default/password: clickhouse
       default/networks/ip:
         - 0.0.0.0/0
     zookeeper:
@@ -71,9 +102,10 @@ spec:
         serviceType: Replicas
     clusters:
       - name: main
+        secret:
+          auto: "true"
         layout:
-          shardsCount: 3
-          replicasCount: 2
+          shardsCount: 2
   templates:
     podTemplates:
       - name: clickhouse-pod
@@ -81,8 +113,34 @@ spec:
           containers:
             - name: clickhouse
               image: dhi.io/clickhouse-server:26.9
+              volumeMounts:
+                - name: backup-data
+                  mountPath: /backups
+                - name: clickhouse-data
+                  mountPath: /var/lib/clickhouse
+          initContainers:
+            - name: init-backup-dir
+              image: busybox
+              command: 
+                - "sh"
+                - "-c"
+                - "chown -R 101:101 /backups"
+              securityContext:
+                runAsUser: 0
+              volumeMounts:
+                - name: backup-data
+                  mountPath: /backups
     volumeClaimTemplates:
       - name: clickhouse-data
+        reclaimPolicy: Retain
+        spec:
+          storageClassName: local-path
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+      - name: backup-data
         reclaimPolicy: Retain
         spec:
           storageClassName: local-path

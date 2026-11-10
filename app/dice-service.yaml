@@ -1,0 +1,111 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# dice-service – Kubernetes Deployment
+#
+# Build & push image:
+#   cd dice-service
+#   docker build -t <YOUR_REGISTRY>/dice-service:latest .
+#   docker push <YOUR_REGISTRY>/dice-service:latest
+#
+# Deploy:
+#   kubectl apply -f dice-service.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dice-service
+  labels:
+    app: dice-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dice-service
+  template:
+    metadata:
+      labels:
+        app: dice-service
+    spec:
+      containers:
+        - name: dice-service
+          # ── Replace with your actual image ──────────────────────────────────
+          image: flytux/dice:otel
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+
+          env:
+            # ── OpenTelemetry Java Agent configuration ───────────────────────
+            - name: OTEL_SERVICE_NAME
+              value: "dice-service"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector:4318"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            - name: OTEL_LOGS_EXPORTER
+              value: "otlp"
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+            - name: OTEL_METRICS_EXPORTER
+              value: "otlp"
+            - name: OTEL_INSTRUMENTATION_LOGBACK_APPENDER_EXPERIMENTAL_CAPTURE_MDC_ATTRIBUTES
+              value: "*"
+
+            # ── MDC → OTLP attribute bridge (enabled by default in agent) ────
+            # The agent captures SLF4J MDC keys as log record attributes.
+            # Keys used: log_category, log_type, user_id, request_id,
+            #            and type-specific attributes (http_method, db_table, …)
+
+            # ── Log level: allow DEBUG from the app ─────────────────────────
+            - name: LOGGING_LEVEL_COM_EXAMPLE_DICE
+              value: "DEBUG"
+
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 40
+            periodSeconds: 15
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+        - name: dice-caller
+          image: curlimages/curl:8.12.1
+          command:
+            - /bin/sh
+            - -c
+            - |
+              while true; do
+                curl -fsS http://127.0.0.1:8080/rolldice >/dev/null || true
+                sleep 1
+              done
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dice-service
+  labels:
+    app: dice-service
+spec:
+  selector:
+    app: dice-service
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP

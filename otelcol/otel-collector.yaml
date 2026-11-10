@@ -26,8 +26,9 @@ data:
     exporters:
       clickhouse:
         endpoint: tcp://clickhouse-clickhouse.clickhouse.svc:9000
-        database: otel
-        username: ${env:CLICKHOUSE_USERNAME}
+        database: default
+        username: default
+        password: clickhouse
         create_schema: false
         async_insert: true
         compress: lz4
